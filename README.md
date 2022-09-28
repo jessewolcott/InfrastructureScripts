@@ -10,6 +10,10 @@ This script will monitor an array of services to make sure they are running. Kic
 
 Set it and forget it! This script cleans up computers that have not logged into the domain in 30/60/90 days, based on the computer record's "LastLogonTimeStamp".
 
+## OrphanedSessionKiller.ps1
+
+Set your servers and schedule this task, and it will terminate disconnected sessions on your servers.
+
 ## ZebraKR203-WindowsUpdateFix.ps1
 
 An MS update broke this commodity thermal printer. This script gets you up and running!
