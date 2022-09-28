@@ -10,6 +10,10 @@ This script will monitor an array of services to make sure they are running. Kic
 
 Set it and forget it! This script cleans up computers that have not logged into the domain in 30/60/90 days, based on the computer record's "LastLogonTimeStamp".
 
+## HyperVFileCopy.ps1
+
+DMZ'd or otherwise restricted machines may need to have files copied into them. This script allows that to happen with an entire directory full of files. 
+
 ## OrphanedSessionKiller.ps1
 
 Set your servers and schedule this task, and it will terminate disconnected sessions on your servers.
