@@ -1,0 +1,24 @@
+Install-Module -Name PSTerminalServices
+$Today = (Get-Date -format MMddyyyy)
+
+Start-Transcript -Path $PSScriptRoot\OrphanedSessionKiller$Today.txt
+
+$Servers = @(
+"Server.contoso.com"
+"Server.fabrikam.com"
+)
+
+foreach ($Server in $Servers) {
+
+       $SessionsToTerminate = ((Get-TSSession -ComputerName $Server -State Disconnected | Where-object {$null -ne $_.UserAccount}).SessionId)
+
+       If ($null -ne $SessionsToTerminate){
+       foreach ($SessionToTerminate in $SessionsToTerminate) {
+            Stop-TSSession -ComputerName $Server -Id $SessionToTerminate -Confirm -Force
+            Write-Host (($SessionsToTerminate).Count) + "orphaned sessions found"
+            }
+            }
+            else { Write-host "No orphaned sessions found on $Server"}
+            }
+
+Stop-Transcript
