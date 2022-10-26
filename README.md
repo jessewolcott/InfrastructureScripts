@@ -10,6 +10,10 @@ This script will monitor an array of services to make sure they are running. Kic
 
 Set it and forget it! This script cleans up computers that have not logged into the domain in 30/60/90 days, based on the computer record's "LastLogonTimeStamp".
 
+## dotnet4versioncheck.ps1
+
+Scrapes specified AD OU's and returns their installed dotnet framework (v4), the OS version, the IP address and the hostname. 
+
 ## HyperVFileCopy.ps1
 
 DMZ'd or otherwise restricted machines may need to have files copied into them. This script allows that to happen with an entire directory full of files. 
