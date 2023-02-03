@@ -22,6 +22,10 @@ DMZ'd or otherwise restricted machines may need to have files copied into them. 
 
 Set your servers and schedule this task, and it will terminate disconnected sessions on your servers.
 
+## VendorTerminationCheck.ps1
+
+Schedule this script to email your vendor contacts to check if all the people that have access to your org still need it.
+
 ## ZebraKR203-WindowsUpdateFix.ps1
 
 An MS update broke this commodity thermal printer. This script gets you up and running!
