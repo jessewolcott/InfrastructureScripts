@@ -21,7 +21,7 @@ Connect-Graph -Scopes User.ReadWrite.All, Organization.Read.All
 
 # Who is assigned that license already? Fail if nothing was found in the previous step (and $SKUID is null)
 if ($null -ne $SKUID){
-    $Licensees = (Get-MgUser -Filter "assignedLicenses/any(x:x/skuId eq $SKUID )" -ConsistencyLevel eventual -CountVariable licensedUserCount -Select UserPrincipalName).UserPrincipalName
+    $Licensees = (Get-MgUser -Filter "assignedLicenses/any(x:x/skuId eq $SKUID )" -ConsistencyLevel eventual -CountVariable licensedUserCount -All).UserPrincipalName
     }
     Else {
         Write-Output "SKU ID is blank. Did you enter the right SKUPartNumber? Opening your current licenses. Enter a valid SkuPartNumber and rerun this script"
@@ -30,11 +30,13 @@ if ($null -ne $SKUID){
         break
         }
 
+Write-Output "Found $licensedUserCount users"
+
 # If there are licensees, add to the group and remove the license
 if (($Licensees.count) -ge 1){
     Foreach ($Licensee in $Licensees){
         Write-Output "Removing direct license from $Licensee"
-        Set-MgUserLicense -UserId $Licensee -RemoveLicenses $SKUID -AddLicenses @() -Confirm:$false 
+        Set-MgUserLicense -UserId $Licensee -RemoveLicenses $SKUID -AddLicenses @() -Confirm:$false -ErrorAction SilentlyContinue
     }
 }
     Else {
