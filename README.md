@@ -10,6 +10,9 @@ This script will monitor an array of services to make sure they are running. Kic
 
 Set it and forget it! This script cleans up computers that have not logged into the domain in 30/60/90 days, based on the computer record's "LastLogonTimeStamp".
 
+## DHCPReservationReport.ps1
+Generates a report of DHCP reservations that exist on authoritative DHCPv4 servers in your domain (or array, if you so choose)
+
 ## dotnet4versioncheck.ps1
 
 Scrapes specified AD OU's and returns their installed dotnet framework (v4), the OS version, the IP address and the hostname. 
