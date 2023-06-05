@@ -1,19 +1,16 @@
 $Site_Server       = "" # SCCM Server FQDN - Example "SCCM.contoso.com"
 $SCCM_Site         = "" # SCCM Site Name - Example "S01"
 $WebServerFilePath = "" # Path to save this HTML - Example "C:\Temp\index.html"
+$IISLocation       = ""
 
-
-<# 
-Define your collection names. If you named everything the same, you can put a wildcard here (like if all your update 
-device collections start with "Windows Servers - " you can put "Windows Servers - *" here. If you want to explicitly call out 
-your device collections, put them in the array and this script will use that array instead of the search.
-#> 
+# Define your collection names 
 $CollectionSearch  = "Windows Servers - *"
 $WindowsUpdateCollectionNames = @(
     #"UpdateServer.contoso.com"
 )
 
 ## Find configmgr
+Do {
 if ($null -ne ((Get-Package -Name "Microsoft Endpoint Configuration Manager Console").Name)){
     Write-output "Found ConfigMgr"
     # Finding ConfigMgr Path
@@ -23,16 +20,18 @@ if ($null -ne ((Get-Package -Name "Microsoft Endpoint Configuration Manager Cons
         }
     if (Test-Path "C:\Program Files (x86)\Microsoft Endpoint Manager\AdminConsole\bin\Microsoft.ConfigurationManagement.exe"){
         Write-Output "Found path to ConfigMgr"
-        $ConfigMgrPath = "C:\Program Files (x86)\Microsoft Configuration Manager\AdminConsole\bin\ConfigurationManager.psd1"
+        $ConfigMgrPath = "C:\Program Files (x86)\Microsoft Endpoint Manager\AdminConsole\bin\ConfigurationManager.psd1"
         }
     Import-module $ConfigMgrPath -ErrorAction SilentlyContinue
     
     Write-Output "Setting location of CMSITE"
-    Set-Location -Path "$((Get-PSDrive -PSProvider CMSITE).name):\"         
+    $SCCM_PSProvider = $((Get-PSDrive -PSProvider CMSITE).name)
+    Set-Location -Path (($SCCM_PSProvider)+':\')      
     }        
     Else {
         Write-Output "Did not find ConfigMgr."
     }
+}until((Get-Location).Path -eq ($SCCM_SITE+':\'))
 ## Find configmgr
 ## Get collections
 if ($WindowsUpdateCollectionNames){
@@ -149,6 +148,15 @@ New-HTML -Name "Monthly Updates - $MonthYear" {
         New-HTMLSection -HeaderText "Monthly Updates - $MonthYear - Consolidated Results" -CanCollapse {
             Table -DataTable $ResultsTable -Title "Monthly Updates - $MonthYear"
             }
+            New-HTMLSection -HeaderText "Visualizations" -CanCollapse {
+                New-HTMLChart -Title 'Patching Results' -TitleAlignment center {
+                    New-ChartBarOptions -Type barStacked 
+                    New-ChartLegend -Name 'Errors', 'In Progress', 'Succeeded','Unknown' -Color Red, Yellow, Green, Black
+                    $ResultsTable| foreach-object {
+                        New-ChartBar -Name $_.'Collection Name' -Value $_.Errors, $_.'In Progress', $_.Succeeded, ($_.'Devices Targeted'-($_.Errors+$_.'In Progress'+$_.Succeeded))
+                    }           
+                }
+            }
         New-HtmlSection -HeaderText "Devices with Errors" -CanCollapse{
             Table -DataTable $ErrorReports -Title "Devices with Errors - $MonthYear"
             }
@@ -163,15 +171,6 @@ New-HTML -Name "Monthly Updates - $MonthYear" {
         New-HTMLSection -HeaderText "Software Deployed" -CanCollapse {
             Table -DataTable $DeployInfoFromCI -Title "Software Deployed"
             }
-        New-HTMLSection -HeaderText "Visualizations" -CanCollapse {
-            New-HTMLChart -Title 'Patching Results' -TitleAlignment center {
-                New-ChartBarOptions -Type barStacked 
-                New-ChartLegend -Name 'Errors', 'In Progress', 'Succeeded','Unknown' -Color Red, Yellow, Green, Black
-                $ResultsTable| foreach-object {
-                    New-ChartBar -Name $_.'Collection Name' -Value $_.Errors, $_.'In Progress', $_.Succeeded, ($_.'Devices Targeted'-($_.Errors+$_.'In Progress'+$_.Succeeded))
-                }           
-            }
-        }
     }
     New-HTMLTab -Name "SCCM Inventory" {
         New-HTMLSection -HeaderText "SCCM Client Status" -CanCollapse {
@@ -179,4 +178,7 @@ New-HTML -Name "Monthly Updates - $MonthYear" {
         }
     }
    } -FilePath $WebServerFilePath
+
+   # Copy-Item -Path $WebServerFilePath -Destination $IISLocation -force -verbose
+
 
