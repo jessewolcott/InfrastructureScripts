@@ -6,7 +6,6 @@ $InfoGatheringOnly = 'No'
 $AppId          = ""
 $client_secret  = ""
 $BeyondTrustURL = "https://yourtenant.beyondtrustcloud.com"
-$ClientAmount   = '' # Roughly how many clients do you have?
 
 $body = @{
     client_id     = $AppId
@@ -27,16 +26,14 @@ if ($tokenRequest){
     'Authorization'="Bearer $token"
     }
 
-$ResultsPages = if ($ClientAmount -gt '100'){
-    ([Math]::Ceiling($ClientAmount/100))}
-        Elseif ($ClientAmount -eq $null){Write-output "No client amount entered"}
-        Elseif ($ClientAmount -le '100'){'1'}
+$ResultsPages = ((Invoke-WebRequest -Headers $AuthHeader1 -Uri ($BeyondTrustURL+'/api/config/v1/jump-client') -Method GET).headers)."X-BT-Pagination-Last-Page"
+
 
 Foreach ($Page in @(1..$ResultsPages)){
        
         $URL=($BeyondTrustURL+'/api/config/v1/jump-client?per_page=100&current_page='+$Page)
         New-Variable -Name ("JSONResultsPage"+$Page) -value ((Invoke-WebRequest -Headers $AuthHeader1 -Uri $URL -Method GET).Content | ConvertFrom-Json)
-    } #| ConvertFrom-Json
+    } 
     
     $RequestContent = (Get-Variable -Name "JSONResultsPage*").Value
     
