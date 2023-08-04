@@ -1,9 +1,12 @@
 $Today = Get-Date -format "MMddyyyy"
 Start-Transcript -Path "$PSScriptRoot\BeyondTrust-Jumpclient-Cleanup-$Today.log"
 
+$InfoGatheringOnly = 'No'
+
 $AppId          = ""
 $client_secret  = ""
-$BeyondTrustURL = "https://yourtenantID.beyondtrustcloud.com"
+$BeyondTrustURL = "https://yourtenant.beyondtrustcloud.com"
+$ClientAmount   = '' # Roughly how many clients do you have?
 
 $body = @{
     client_id     = $AppId
@@ -24,9 +27,20 @@ if ($tokenRequest){
     'Authorization'="Bearer $token"
     }
 
-    $URL=("$BeyondTrustURL/api/config/v1/jump-client")
-    $RequestContent = (Invoke-WebRequest -Headers $AuthHeader1 -Uri $URL -Method GET).Content | ConvertFrom-Json
-    $LostDevices    = $RequestContent | Where-Object {$_.is_Lost -match "true"} 
+$ResultsPages = if ($ClientAmount -gt '100'){
+    ([Math]::Ceiling($ClientAmount/100))}
+        Elseif ($ClientAmount -eq $null){Write-output "No client amount entered"}
+        Elseif ($ClientAmount -le '100'){'1'}
+
+Foreach ($Page in @(1..$ResultsPages)){
+       
+        $URL=($BeyondTrustURL+'/api/config/v1/jump-client?per_page=100&current_page='+$Page)
+        New-Variable -Name ("JSONResultsPage"+$Page) -value ((Invoke-WebRequest -Headers $AuthHeader1 -Uri $URL -Method GET).Content | ConvertFrom-Json)
+    } #| ConvertFrom-Json
+    
+    $RequestContent = (Get-Variable -Name "JSONResultsPage*").Value
+    
+    $LostDevices    = $RequestContent | Where-Object {$_.is_Lost -match "true"}
     $Uninstalled    = $RequestContent | Where-Object {$_.connection_type -match "uninstalled"}
     
     # Deduplicate
@@ -38,44 +52,61 @@ if ($tokenRequest){
         $DuplicateLatest   = $DuplicateComputer | Sort-Object -Property last_connect_timestamp | Select-Object -Last 1
         Compare-Object -Property Name -ReferenceObject $DuplicateLatest -DifferenceObject $DuplicateComputer -Passthru
     }
-    If($Deduplicate){
-        Write-Output ("Found "+$Deduplicate.count+" machines with duplicate entries.")
-        $Deduplicate.Name
-        foreach ($MachineID in ($Deduplicate.id)){
-            Write-Output "Found machine ID $MachineID in the Jump Client list multiple times. Removing the oldest."
-            Write-Output "Attempting to remove..."
-            $DeleteURL=("$BeyondTrustURL/api/config/v1/jump-client/"+$MachineID)
-            Write-Output $DeleteURL
+    if ($InfoGatheringOnly -ne 'Yes'){
+        If($Deduplicate){
+            Write-Output ("Found "+$Deduplicate.count+" machines with duplicate entries.")
+            $Deduplicate.Name
+            foreach ($MachineID in ($Deduplicate.id)){
+                Write-Output "Found machine ID $MachineID in the Jump Client list multiple times. Removing the oldest."
+                Write-Output "Attempting to remove..."
+                $DeleteURL=("$BeyondTrustURL/api/config/v1/jump-client/"+$MachineID)
+                Write-Output $DeleteURL
+                (Invoke-WebRequest -Headers $AuthHeader1 -Uri $DeleteURL -Method Delete).Content | ConvertFrom-Json
+                }
             }
-        }
-
-
-    # Lost Devices
-    Write-Output "Lost devices begin."
-    If($LostDevices){
-        Write-Output ("Found "+$LostDevices.count+" machines considered `"lost`".")
-        $LostDevices.Name
-        foreach ($MachineID in ($LostDevices.id)){
-            Write-Output "Found machine ID $MachineID in the Jump Client list categorized as `"lost`"."
-            Write-Output "Attempting to remove..."
-            $DeleteURL=("$BeyondTrustURL/api/config/v1/jump-client/"+$MachineID)
-            Write-Output $DeleteURL            
+        
+        # Lost Devices
+        Write-Output "Lost devices begin."
+        If($LostDevices){
+            Write-Output ("Found "+$LostDevices.count+" machines considered `"lost`".")
+            $LostDevices.Name
+            foreach ($MachineID in ($LostDevices.id)){
+                Write-Output "Found machine ID $MachineID in the Jump Client list categorized as `"lost`"."
+                Write-Output "Attempting to remove..."
+                $DeleteURL=("$BeyondTrustURL/api/config/v1/jump-client/"+$MachineID)
+                Write-Output $DeleteURL
+                (Invoke-WebRequest -Headers $AuthHeader1 -Uri $DeleteURL -Method Delete).Content | ConvertFrom-Json
+                }
             }
-        }
-    # Uninstalled Devices
-    Write-Output "Uninstalled devices begin."
-    If($Uninstalled){
-        Write-Output ("Found "+$Uninstalled.count+" machines considered `"uninstalled`".")
-        $LostDevices.Name
-        foreach ($MachineID in ($Uninstalled.id)){
-            Write-Output "Found machine ID $MachineID in the Jump Client list categorized as `"uninstalled`"."
-            Write-Output "Attempting to remove..."
-            $DeleteURL=("$BeyondTrustURL/api/config/v1/jump-client/"+$MachineID)
-            Write-Output $DeleteURL
-                 }
-        }
+        # Uninstalled Devices
+        Write-Output "Uninstalled devices begin."
+        If($Uninstalled){
+            Write-Output ("Found "+$Uninstalled.count+" machines considered `"uninstalled`".")
+            $LostDevices.Name
+            foreach ($MachineID in ($Uninstalled.id)){
+                Write-Output "Found machine ID $MachineID in the Jump Client list categorized as `"uninstalled`"."
+                Write-Output "Attempting to remove..."
+                $DeleteURL=("$BeyondTrustURL/api/config/v1/jump-client/"+$MachineID)
+                Write-Output $DeleteURL
+                (Invoke-WebRequest -Headers $AuthHeader1 -Uri $DeleteURL -Method Delete).Content | ConvertFrom-Json
+                }
+            }
+            }
+            Else {Write-OutPut "Data Gathering Mode"}
         }
         Else{
             Write-output "No token found"
             }
+            
+
+if ($InfoGatheringOnly -eq 'Yes'){
+    ($RequestContent).Value | Out-Gridview -Title "All Devices"
+    $LostDevices | Out-Gridview -Title "Lost Devices"
+    $Uninstalled | Out-Gridview -Title "Uninstalled Devices"
+    Write-Output ("Found "+((($RequestContent).Syncroot).Count)+" devices")
+    Write-Output ("Found "+(($LostDevices).Count)+" lost devices")
+    Write-Output ("Found "+(($Uninstalled).Count)+" uninstalled devices")
+
+}
+
 Stop-Transcript
